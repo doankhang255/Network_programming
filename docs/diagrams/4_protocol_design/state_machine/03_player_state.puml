@@ -1,0 +1,31 @@
+@startuml 03_player_state
+!include ../../style.iuml
+title Player (session) state machine
+
+state CONNECTED : not logged in\naccepts: REGISTER, LOGIN
+state IDLE : in "my room" (home screen)\naccepts: LIST_ONLINE, ADD_FRIEND, FIND_MATCH,\nINVITE, ACCEPT_INVITE, DECLINE_INVITE,\nLEADERBOARD, LOGOUT
+state SEARCHING : in random or ranked queue\naccepts: CANCEL_MATCH
+state PLAYING : in a game room given by the server\naccepts: MOVE, OFFER_DRAW, ACCEPT_DRAW,\nDECLINE_DRAW, RESIGN, LEAVE_GAME
+
+[*] --> CONNECTED : TCP connection accepted
+CONNECTED --> CONNECTED : REGISTER /\nLOGIN fails /\nalready logged in
+CONNECTED --> IDLE : LOGIN ok\n(my room is created)
+IDLE --> SEARCHING : FIND_MATCH|RANDOM\nor FIND_MATCH|RANKED
+SEARCHING --> IDLE : CANCEL_MATCH
+SEARCHING --> PLAYING : MATCH_FOUND\n(server creates game room)
+IDLE --> PLAYING : invitation accepted\n(server creates game room)
+PLAYING --> IDLE : GAME_OVER\n(back to my room)
+IDLE --> [*] : LOGOUT\n(my room is deleted)
+
+note right of PLAYING
+  Connection lost while PLAYING:
+  the player loses immediately.
+  Connection lost in other states:
+  session and room are removed.
+end note
+note left of CONNECTED
+  A message not accepted in the
+  current state gets
+  ERROR|INVALID_STATE
+end note
+@enduml

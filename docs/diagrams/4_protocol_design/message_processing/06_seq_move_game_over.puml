@@ -1,0 +1,56 @@
+@startuml 06_seq_move_game_over
+!include ../../style.iuml
+autonumber
+title Sequence – Move, game over, rating (game room 12, ranked)
+
+participant "Client A\n(white)" as A
+participant "Server\n(game room 12)" as S
+participant "Client B\n(black)" as B
+database "MySQL" as DB
+
+A -> S : MOVE|12|e2e4
+activate S
+S -> S : lock room 12
+S -> S : room PLAYING? white's turn?
+S -> S : ChessGame.tryMove("e2e4")
+alt legal move
+  S --> A : MOVED|12|e2e4|<fen>|b
+  S --> B : MOVED|12|e2e4|<fen>|b
+else illegal move or not A's turn
+  S --> A : MOVE_REJECTED|12|ILLEGAL_MOVE
+end
+S -> S : unlock room 12
+deactivate S
+note over A, B
+  Clients redraw the board only after MOVED arrives (server is the referee).
+  While players are thinking nobody holds the lock of room 12.
+end note
+
+== ... game continues ... ==
+
+B -> S : MOVE|12|d8h4
+activate S
+S -> S : lock room 12
+S -> S : legal, and it is checkmate -> BLACK_WIN
+S -> S : room 12: PLAYING -> FINISHED\nranked game: Elo white −12, black +12
+S --> A : MOVED|12|d8h4|<fen>|w
+S --> B : MOVED|12|d8h4|<fen>|w
+S --> A : GAME_OVER|12|BLACK_WIN|CHECKMATE|-12
+S --> B : GAME_OVER|12|BLACK_WIN|CHECKMATE|+12
+S -> S : unlock room 12, close room\nboth players -> IDLE (own room)
+deactivate S
+S ->> DB : (DB thread) one transaction:\nUPDATE ratings + INSERT game
+
+== other ending: a player disconnects ==
+
+B -> S : TCP connection lost
+activate S
+S -> S : lock room 12 -> B loses immediately
+S --> A : GAME_OVER|12|WHITE_WIN|DISCONNECT|+12
+deactivate S
+
+note over A, B
+  Random and friend games use the same flow,
+  but the rating change is always 0.
+end note
+@enduml

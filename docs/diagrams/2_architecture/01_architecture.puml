@@ -1,0 +1,44 @@
+@startuml 01_architecture
+!include ../style.iuml
+title Online Chess – Client/Server architecture over TCP
+
+node "Player A's computer" {
+  [Client app\n(Java Swing)] as CA
+}
+node "Player B's computer" {
+  [Client app\n(Java Swing)] as CB
+}
+node "Player C's computer" {
+  [Client app\n(Java Swing)] as CC
+}
+
+package "Game server (Java)" {
+  [Network layer\nServerSocket · 1 thread per client] as NET
+  [Session manager\nlogin · online list · friends\npersonal rooms] as SES
+  [Matchmaking\nrandom queue · ranked queue] as MM
+  [Game room manager\nGame room 1 … N\none lock per room] as GRM
+  [Chess rules\n(referee)] as RULES
+  [Elo rating\n(ranked games only)] as ELO
+  [Data access\n(JDBC)] as DAO
+  [Message logger] as LOG
+}
+database "MySQL\nusers · friends · games" as DB
+file "server.log" as LOGFILE
+
+CA <--> NET : TCP
+CB <--> NET : TCP
+CC <--> NET : TCP
+
+NET --> SES : messages
+NET --> LOG : every message\n(password hidden)
+LOG --> LOGFILE
+SES --> MM : FIND_MATCH
+SES --> GRM : INVITE accepted
+MM --> GRM : match found
+SES --> DAO : register · login · friends
+GRM --> RULES : validate move
+GRM --> ELO : game over
+ELO --> DAO : save result
+DAO --> DB : SQL
+
+@enduml
