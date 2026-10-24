@@ -2,30 +2,31 @@
 !include ../../style.iuml
 title Player (session) state machine
 
-state CONNECTED : not logged in\naccepts: REGISTER, LOGIN
-state IDLE : in "my room" (home screen)\naccepts: LIST_ONLINE, ADD_FRIEND, FIND_MATCH,\nINVITE, ACCEPT_INVITE, DECLINE_INVITE,\nLEADERBOARD, LOGOUT
-state SEARCHING : in random or ranked queue\naccepts: CANCEL_MATCH
-state PLAYING : in a game room given by the server\naccepts: MOVE, OFFER_DRAW, ACCEPT_DRAW,\nDECLINE_DRAW, RESIGN, LEAVE_GAME
+state "<b>CONNECTED</b>" as CONNECTED : not logged in\n<i>accepts:</i>\nREGISTER, LOGIN
+state "<b>IDLE</b>" as IDLE : in "my room" (home screen)\n<i>accepts:</i>\nLIST_ONLINE, ADD_FRIEND, LEADERBOARD,\nFIND_MATCH, INVITE,\nACCEPT_INVITE, DECLINE_INVITE, LOGOUT
+state "<b>SEARCHING</b>" as SEARCHING : in random / ranked queue\n<i>accepts:</i>\nCANCEL_MATCH
+state "<b>PLAYING</b>" as PLAYING : in a game room of the server\n<i>accepts:</i>\nMOVE, OFFER_DRAW, ACCEPT_DRAW,\nDECLINE_DRAW, RESIGN, LEAVE_GAME
 
-[*] --> CONNECTED : TCP connection accepted
-CONNECTED --> CONNECTED : REGISTER /\nLOGIN fails /\nalready logged in
-CONNECTED --> IDLE : LOGIN ok\n(my room is created)
-IDLE --> SEARCHING : FIND_MATCH|RANDOM\nor FIND_MATCH|RANKED
-SEARCHING --> IDLE : CANCEL_MATCH
-SEARCHING --> PLAYING : MATCH_FOUND\n(server creates game room)
-IDLE --> PLAYING : invitation accepted\n(server creates game room)
-PLAYING --> IDLE : GAME_OVER\n(back to my room)
-IDLE --> [*] : LOGOUT\n(my room is deleted)
+[*] -down-> CONNECTED : TCP connected
+CONNECTED -down-> IDLE : LOGIN ok
+IDLE -down-> SEARCHING : FIND_MATCH
+SEARCHING -up-> IDLE : CANCEL_MATCH
+SEARCHING -down-> PLAYING : MATCH_FOUND
+IDLE -down-> PLAYING : invitation accepted
+PLAYING -up-> IDLE : GAME_OVER
+IDLE -left-> [*] : LOGOUT
+
+note right of CONNECTED
+  REGISTER, or LOGIN failed
+  (wrong password / already
+  logged in): stay CONNECTED
+end note
 
 note right of PLAYING
   Connection lost while PLAYING:
   the player loses immediately.
-  Connection lost in other states:
-  session and room are removed.
-end note
-note left of CONNECTED
-  A message not accepted in the
-  current state gets
-  ERROR|INVALID_STATE
+
+  Any message not accepted in the
+  current state: ERROR|INVALID_STATE
 end note
 @enduml

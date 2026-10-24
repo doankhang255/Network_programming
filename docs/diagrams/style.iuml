@@ -18,6 +18,7 @@ skinparam state {
   FontColor #0b3a6e
   FontStyle bold
   AttributeFontSize 11
+  AttributeFontStyle plain
   AttributeFontColor #1f2933
   StartColor #0b3a6e
   EndColor #0b3a6e

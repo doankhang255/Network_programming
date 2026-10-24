@@ -3,12 +3,14 @@
 hide empty description
 title Game room state machine (one per match, many in parallel)
 
-[*] --> PLAYING : server creates room\n(match found / invite accepted)\ncolours chosen at random
+state "<b>FINISHED</b>" as FINISHED
+state "<b>CLOSED</b>" as CLOSED
 
-state PLAYING {
-  state WHITE_TURN : accepts MOVE from white\nillegal move -> MOVE_REJECTED
-  state BLACK_TURN : accepts MOVE from black\nillegal move -> MOVE_REJECTED
-  [*] --> WHITE_TURN
+[*] --> WHITE_TURN : server creates room\n(match found / invite accepted)\ncolours chosen at random
+
+state "<b>PLAYING</b>" as PLAYING {
+  state "<b>WHITE_TURN</b>" as WHITE_TURN : accepts MOVE from white\nillegal move -> MOVE_REJECTED
+  state "<b>BLACK_TURN</b>" as BLACK_TURN : accepts MOVE from black\nillegal move -> MOVE_REJECTED
   WHITE_TURN --> BLACK_TURN : white\nmoves
   BLACK_TURN --> WHITE_TURN : black\nmoves
 }

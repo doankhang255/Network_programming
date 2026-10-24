@@ -3,18 +3,18 @@
 autonumber
 title Sequence – Ranked match: find opponent, server creates game room
 
-participant "Client A\n (1500)" as A
+participant "Client A\n(rating 1500)" as A
 box "Server" #fbfcfe
   participant "Matchmaking\n(ranked queue)" as MM
   participant "Game room manager" as GRM
 end box
-participant "Client B\n (1650)" as B
+participant "Client B\n(rating 1650)" as B
 
 A -> MM : FIND_MATCH|RANKED
-MM -> MM : khang: IDLE -> SEARCHING\nrange ±100
+MM -> MM : A: IDLE -> SEARCHING\nrange ±100
 MM --> A : SEARCHING|RANKED
 B -> MM : FIND_MATCH|RANKED
-MM -> MM : minh: IDLE -> SEARCHING\nrange ±100
+MM -> MM : B: IDLE -> SEARCHING\nrange ±100
 MM --> B : SEARCHING|RANKED
 
 loop every 1 s until a pair is found
@@ -22,10 +22,10 @@ loop every 1 s until a pair is found
   MM -> MM : |1500 − 1650| = 150\n0–9 s: 150 > 100, keep waiting\n10 s: 150 ≤ 200, match!
 end
 
-MM -> GRM : createGameRoom(khang, minh, RANKED)
-GRM -> GRM : game room 12 = PLAYING\ncolours at random: khang WHITE
-GRM --> A : MATCH_FOUND|12|WHITE|minh|1650
-GRM --> B : MATCH_FOUND|12|BLACK|khang|1500
+MM -> GRM : createGameRoom(A, B, RANKED)
+GRM -> GRM : game room 12 = PLAYING\ncolours at random: A = WHITE
+GRM --> A : MATCH_FOUND|12|WHITE|<B's name>|1650
+GRM --> B : MATCH_FOUND|12|BLACK|<A's name>|1500
 
 note over A, B
   Before a match is found, CANCEL_MATCH removes the player
