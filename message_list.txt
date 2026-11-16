@@ -1,0 +1,153 @@
+MESSAGE LIST – bản dùng id người chơi (thay cho slide 11–13 của v5)
+======================================================================
+
+Quy ước id
+----------
+- Mỗi người chơi có 1 id 4 ký tự (chữ cái hoặc chữ số), tự chọn khi đăng ký,
+  không trùng với ai. Ví dụ: 1001, K7X2. Không phân biệt hoa thường
+  (server đổi sang chữ hoa: k7x2 = K7X2). Đổi được bằng CHANGE_ID.
+- Id người chơi cũng chính là id "my room" của người đó.
+- Trong message, người chơi LUÔN được nhắc tới bằng id. Tên (username) chỉ
+  dùng để đăng nhập và để hiển thị cho dễ đọc.
+- Client → server: chỉ dùng id, không bao giờ gửi tên. Server → client: được
+  gửi tên để client hiển thị: ONLINE_LIST (id:name:...), LEADERBOARD
+  (rank:id:name:rating), ADD_FRIEND_OK|id|name, INVITED (tên người mời), và opponent trong
+  MATCH_FOUND / GAME_START (id đối thủ đã nằm trong id room nên không gửi lại).
+- Client chỉ gửi id của NGƯỜI KIA (server đã biết người gửi là ai).
+  Server gửi cả hai id theo thứ tự: người mời | người được mời.
+- Id game room = hai id nối bằng dấu "-":
+    lời mời   : <id người mời>-<id người được mời>     vd 1001-1002
+    ghép trận : <id người A>-<id người B>               vd 1002-K7X2
+- Lời mời không có id riêng nữa: nó được xác định bằng cặp
+  (id người mời, id người được mời).
+
++================================+================================================+======================================================+
+| Client -> Server               | Server -> Client                               | What it means                                        |
++================================+================================================+======================================================+
+| [ ACCOUNT ]                                                                                                                            |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| REGISTER|user|pass|id          | REGISTER_OK                                    | Create an account with a chosen 4-character id       |
+|                                | REGISTER_FAIL|reason                           | (letters or digits). A new player starts at rating   |
+|                                |                                                | 1200. Fails if the username or the id is taken or    |
+|                                |                                                | not valid                                            |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| LOGIN|user|pass                | LOGIN_OK|rating|id                             | Log in. OK returns the player's rating and their id  |
+|                                | LOGIN_FAIL|reason                              | (also the id of their own room). Fails on a wrong    |
+|                                |                                                | password or if already online                        |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| CHANGE_ID|new_id               | CHANGE_ID_OK|new_id                            | Change to another free id. Only when idle and no     |
+|                                | CHANGE_ID_FAIL|reason                          | invitation is pending. OK returns the new id (in     |
+|                                | (OK: those who added you get ONLINE_LIST)      | upper case). FAIL reasons: INVALID_ID, ID_TAKEN,     |
+|                                |                                                | INVITE_PENDING                                       |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| LOGOUT                         | -                                              | Leave the system: the server deletes the player's    |
+|                                | (those who added you get a new ONLINE_LIST)    | room and closes the connection                       |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| [ ONLINE & FRIENDS ]                                                                                                                   |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| (automatic)                    | ONLINE_LIST|count|friends...                   | Your friends who are online (only friends are shown, |
+|                                | (pushed after login and on every change)       | not every player): id, name, rating, status (idle /  |
+|                                | friend = id:name:rating:status                 | searching / playing). Sent after login and again     |
+|                                |                                                | when one of your friends logs in, logs out, changes  |
+|                                |                                                | status or id, and when you add a friend              |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| ADD_FRIEND|id                  | ADD_FRIEND_OK|id|name                          | Add another player as a friend by their id           |
+|                                | ADD_FRIEND_FAIL|reason                         | (one-way). OK returns that player's id and name (for |
+|                                |                                                | display); they then appear in your online list when  |
+|                                |                                                | online. FAIL reasons: USER_NOT_FOUND, SELF_TARGET,   |
+|                                |                                                | ALREADY_FRIEND. Only friends can be invited          |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| LEADERBOARD                    | LEADERBOARD|rows...                            | All players sorted by rating, highest first          |
+|                                | row = rank:id:name:rating                      |                                                      |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| [ MATCHMAKING ]                                                                                                                        |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| FIND_MATCH|mode                | SEARCHING|mode                                 | Join the random or the ranked queue. The player is   |
+| mode = RANDOM or RANKED        |                                                | now SEARCHING and waits                              |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| (the server finds a pair)      | MATCH_FOUND|room|colour|opponent|rating        | Sent to both players: the game room id (the two      |
+|                                | (push to both players)                         | players' ids joined), their colour (chosen at        |
+|                                | room = idA-idB                                 | random), the opponent's name and rating. The         |
+|                                | opponent = opponent's name                     | opponent's id is the other half of the room id       |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| CANCEL_MATCH                   | -                                              | Leave the queue before a match is found; the player  |
+|                                |                                                | goes back to IDLE                                    |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| [ INVITATION ]                                                                                                                         |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| INVITE|inviteeId               | INVITED|inviterId|inviteeId|inviterName        | Invite a friend who is idle, by their id. The friend |
+|                                | (push to the friend)                           | receives both ids (the invitation is identified by   |
+|                                |                                                | this pair) and the inviter's name for display:       |
+|                                |                                                | friendship is one-way, so the inviter may not be in  |
+|                                |                                                | the friend's list                                    |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| ACCEPT_INVITE|inviterId        | GAME_START|room|colour|opponent|rating         | The friend accepts: the server opens game room       |
+|                                | (to both players)                              | inviterId-inviteeId and the game starts at once.     |
+|                                | room = inviterId-inviteeId                     | Each player gets their own copy: same room, their    |
+|                                | opponent = opponent's name                     | own colour, the opponent's name and rating           |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| DECLINE_INVITE|inviterId       | INVITE_DECLINED|inviterId|inviteeId            | The friend says no: the inviter is told              |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| (30 s timer runs out)          | INVITE_EXPIRED|inviterId|inviteeId             | No answer within 30 s: the invitation is cancelled   |
+|                                | (to both players)                              |                                                      |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| [ GAME   (room = e.g. 1001-1002) ]                                                                                                     |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| MOVE|room|uci                  | MOVED|room|uci|fen|turn                        | Legal: MOVED with the new board (FEN) and whose turn |
+| uci = from + to square,        | MOVE_REJECTED|room|reason                      | it is, to both players. Illegal or not your turn:    |
+| e.g. e2e4                      |                                                | MOVE_REJECTED, to the sender only                    |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| OFFER_DRAW|room                | DRAW_OFFERED|room                              | Propose a draw; the opponent must answer             |
+|                                | (push to the opponent)                         |                                                      |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| ACCEPT_DRAW|room               | GAME_OVER|room|DRAW|...                        | The opponent agrees: the game ends as a draw         |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| DECLINE_DRAW|room              | DRAW_DECLINED|room                             | The opponent refuses: the game goes on               |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| RESIGN|room                    | GAME_OVER|room|result|reason|ratingChange      | Give up or leave: the opponent wins. GAME_OVER is    |
+| LEAVE_GAME|room                |                                                | also sent after checkmate, stalemate or a            |
+|                                |                                                | disconnect, with the rating change                   |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| [ ERRORS ]                                                                                                                             |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+| (any wrong line)               | ERROR|code|message                             | Bad format, unknown type or not allowed in the       |
+|                                |                                                | current state (code INVALID_STATE). The connection   |
+|                                |                                                | stays open                                           |
++--------------------------------+------------------------------------------------+------------------------------------------------------+
+
+Ví dụ một phiên (bob đã đăng nhập trước, id 1002)
+-------------------------------------------------
+  A> = alice gửi, A< = alice nhận, B> / B< = bob gửi / nhận
+
+  A> REGISTER|alice|secret1|1002
+  A< REGISTER_FAIL|ID_TAKEN                         (bob đã chọn 1002)
+  A> REGISTER|alice|secret1|1001
+  A< REGISTER_OK
+  A> LOGIN|alice|secret1
+  A< LOGIN_OK|1200|1001
+  A< ONLINE_LIST|0|                                (alice chưa có bạn nào)
+  A> ADD_FRIEND|1002
+  A< ADD_FRIEND_OK|1002|bob
+  A< ONLINE_LIST|1|1002:bob:1450:IDLE               (giờ alice thấy bob online)
+  A> ADD_FRIEND|9999
+  A< ADD_FRIEND_FAIL|USER_NOT_FOUND                 (không có ai mang id 9999)
+  A> INVITE|1002
+  B< INVITED|1001|1002|alice                        (push; bob chưa kết bạn alice nên cần tên)
+  B> ACCEPT_INVITE|1001
+  A< GAME_START|1001-1002|WHITE|bob|1450
+  B< GAME_START|1001-1002|BLACK|alice|1200
+  A> MOVE|1001-1002|e2e4
+  A< MOVED|1001-1002|e2e4|rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1|b
+  B< MOVED|1001-1002|e2e4|rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1|b
+  B> RESIGN|1001-1002
+  A< GAME_OVER|1001-1002|WHITE_WIN|RESIGN|0
+  B< GAME_OVER|1001-1002|WHITE_WIN|RESIGN|0
+
+Còn cần chốt
+------------
+  1. Người mời có cần 1 xác nhận kiểu INVITE_SENT|inviterId|inviteeId không?
+     (Giờ người mời đã biết cả hai id nên không bắt buộc; v5 không có.)
+  2. ADD_FRIEND_OK có kèm tên (|name) không? Cần nếu cho phép thêm bạn đang offline.
+  3. Ghép trận: id nào đứng trước trong room (người vào hàng đợi trước,
+     người cầm quân trắng, hay id nhỏ hơn)?
+  4. Đăng nhập vẫn bằng username (đề xuất, vì id đổi được) hay bằng id?
